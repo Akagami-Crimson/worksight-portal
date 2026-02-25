@@ -179,6 +179,18 @@
         }
 
         jobsArray.forEach(job => {
+            // Calculate real-time available slots
+            const slotsFilled = job.slots_filled || 0;
+            const availableSlots = job.vacancy_count - slotsFilled;
+            
+            // Format the deadline badge
+            let deadlineBadge = '';
+            if (job.expires_at) {
+                deadlineBadge = `<span class="badge bg-danger bg-opacity-10 text-danger border border-danger ms-2">
+                                    ⏳ Deadline: ${job.expires_at}
+                                 </span>`;
+            }
+
             const cardHtml = `
                 <div class="col-md-6 col-lg-4 mb-4">
                     <div class="card h-100 shadow-sm job-card">
@@ -190,14 +202,15 @@
                             <h6 class="card-subtitle mb-3 text-muted">🏢 ${job.employer_name}</h6>
                             <div class="mb-3">
                                 <span class="badge bg-success bg-opacity-10 text-success border border-success">
-                                    ${job.vacancy_count} Position(s) Available
+                                    ${availableSlots} Position(s) Available
                                 </span>
+                                ${deadlineBadge}
                             </div>
                             <hr>
                             <small class="text-muted">Posted: ${job.created_at}</small>
                         </div>
                         <div class="card-footer bg-white border-top-0">
-                            <button class="btn btn-outline-primary w-100">Apply Now</button>
+                            <button class="btn btn-outline-primary w-100">Apply Now via PESO</button>
                         </div>
                     </div>
                 </div>
