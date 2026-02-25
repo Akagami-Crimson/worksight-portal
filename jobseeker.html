@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worksight - Public Job Board</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .job-card { transition: transform 0.2s; }
+        .job-card:hover { transform: translateY(-5px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; }
+        .sector-badge { background-color: #e9ecef; color: #495057; font-weight: 600; }
+        .ai-banner { border-left: 5px solid #0d6efd; background-color: #f8f9fa; }
+    </style>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="#">Worksight <strong>PESO</strong></a>
+        <span class="navbar-text text-white">
+            Verified Opportunities & AI Insights
+        </span>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row mb-4 align-items-end">
+        <div class="col-md-5">
+            <h2 class="mb-1">Active Job Listings</h2>
+            <p class="text-muted mb-0">These positions have been officially verified and approved by the PESO administration.</p>
+        </div>
+        <div class="col-md-4 mt-3 mt-md-0">
+            <input type="text" id="jobSearch" class="form-control border-primary" placeholder="Search job title or employer..." oninput="filterJobs()">
+        </div>
+        <div class="col-md-3 mt-3 mt-md-0">
+            <select id="sectorFilter" class="form-select border-primary" onchange="filterJobs()">
+                <option value="All">All Sectors</option>
+            </select>
+        </div>
+    </div>
+    </div>
+
+    <div id="aiInsightBanner" class="card ai-banner mb-4 d-none shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="card-title text-primary mb-0">✨ PESO AI Industry Insight</h5>
+                <span id="aiConfidence" class="badge bg-primary"></span>
+            </div>
+            <h6 class="mb-2">
+                Forecasted Trend: <strong id="aiTrend"></strong> 
+                <span class="text-muted">(<span id="aiCAGR"></span>% 12-Month Growth)</span>
+            </h6>
+            <p id="aiSummary" class="card-text text-dark mb-0"></p>
+        </div>
+    </div>
+
+    <div class="row" id="jobListingsContainer">
+        <div class="col-12 text-center mt-5" id="loadingSpinner">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted">Loading verified jobs from PESO...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allJobs = []; // Store all jobs globally so we can filter them client-side
+
+    // 1. Boot up the page
+    document.addEventListener('DOMContentLoaded', async function() {
+        await loadSectors();
+        await loadAllJobs();
+    });
+
+    // 2. Fetch all available sectors to populate the dropdown
+    async function loadSectors() {
+        try {
+            const response = await fetch(' https://unreprobative-temika-overcareful.ngrok-free.dev/api/forecasts/sectors');
+            const data = await response.json();
+            const filter = document.getElementById('sectorFilter');
+            
+            data.sectors.forEach(sector => {
+                filter.innerHTML += `<option value="${sector}">${sector}</option>`;
+            });
+        } catch (error) {
+            console.error("Could not load sectors:", error);
+        }
+    }
+
+    // 3. Fetch all verified jobs from the Ground Truth API
+    async function loadAllJobs() {
+        try {
+            const response = await fetch(' https://unreprobative-temika-overcareful.ngrok-free.dev/api/vacancies/active?verified=1');
+            allJobs = await response.json();
+            renderJobs(allJobs); // Draw all jobs initially
+        } catch (error) {
+            document.getElementById('jobListingsContainer').innerHTML = `
+                <div class="col-12 text-center mt-5 text-danger">
+                    <h5>Connection Error</h5>
+                    <p>Could not connect to the Worksight Server.</p>
+                </div>`;
+        }
+    }
+
+   // 4. Handle Dual Filtering (Search + Sector) and AI Banner injection
+    async function filterJobs() {
+        const selectedSector = document.getElementById('sectorFilter').value;
+        const searchTerm = document.getElementById('jobSearch').value.toLowerCase();
+        const banner = document.getElementById('aiInsightBanner');
+        
+        // --- 1. Filter the allJobs array based on BOTH criteria ---
+        const filteredJobs = allJobs.filter(job => {
+            const matchesSector = (selectedSector === "All") || (job.sector_name === selectedSector);
+            
+            // Check if search term exists in either the job title OR the employer name
+            const matchesSearch = job.job_title.toLowerCase().includes(searchTerm) || 
+                                  job.employer_name.toLowerCase().includes(searchTerm);
+            
+            return matchesSector && matchesSearch;
+        });
+
+        // --- 2. Render the updated list ---
+        renderJobs(filteredJobs);
+
+        // --- 3. Handle the AI Insight Banner ---
+        if (selectedSector === "All") {
+            banner.classList.add('d-none'); // Hide banner if no specific sector is selected
+            return;
+        }
+
+        // Fetch AI Interpretation for the specifically selected sector
+        try {
+            const response = await fetch(` https://unreprobative-temika-overcareful.ngrok-free.dev/api/interpretation/sector/${selectedSector}`);
+            const data = await response.json();
+
+            if (data && data.interpretation && data.interpretation.metrics) {
+                const metrics = data.interpretation.metrics;
+                
+                document.getElementById('aiTrend').innerText = metrics.trend_direction;
+                document.getElementById('aiCAGR').innerText = (metrics.cagr_12_month * 100).toFixed(2);
+                document.getElementById('aiConfidence').innerText = metrics.confidence_level + " Confidence";
+                document.getElementById('aiSummary').innerText = metrics.summary_text;
+                
+                banner.classList.remove('d-none'); 
+            } else {
+                banner.classList.add('d-none');
+            }
+        } catch (error) {
+            console.error("No AI forecast found for this sector.");
+            banner.classList.add('d-none');
+        }
+    }
+
+    // 5. Render the Job Cards HTML
+    function renderJobs(jobsArray) {
+        const container = document.getElementById('jobListingsContainer');
+        container.innerHTML = '';
+
+        if (jobsArray.length === 0) {
+            container.innerHTML = `
+                <div class="col-12 text-center mt-5">
+                    <h5 class="text-muted">No active job listings found.</h5>
+                </div>`;
+            return;
+        }
+
+        jobsArray.forEach(job => {
+            const cardHtml = `
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100 shadow-sm job-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title text-primary mb-0">${job.job_title}</h5>
+                                <span class="badge sector-badge">${job.sector_name}</span>
+                            </div>
+                            <h6 class="card-subtitle mb-3 text-muted">🏢 ${job.employer_name}</h6>
+                            <div class="mb-3">
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success">
+                                    ${job.vacancy_count} Position(s) Available
+                                </span>
+                            </div>
+                            <hr>
+                            <small class="text-muted">Posted: ${job.created_at}</small>
+                        </div>
+                        <div class="card-footer bg-white border-top-0">
+                            <button class="btn btn-outline-primary w-100">Apply Now</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML += cardHtml;
+        });
+    }
+</script>
+
+</body>
+</html>

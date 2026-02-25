@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worksight - Employer Pre-Registration Queue</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container mt-5 mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Intent to Hire: Pre-Registration</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <strong>⚠️ Notice to Employers:</strong> This form is a pre-registration queue and <strong>will not</strong> instantly publish your vacancy. 
+                        <br><br>
+                        To complete your accreditation, comply with labor regulations, and publish this vacancy to local jobseekers, you must complete a consultation at our physical office.
+                    </div>
+                    
+                    <p class="text-muted mb-4">
+                        <strong>Required Next Step:</strong> After submitting this form, please visit the Silay City PESO at the <strong>3rd Level Annex Building</strong>. Bring your <strong>SEC/DTI Registration</strong> and <strong>BIR Form 2303</strong> for verification by the PESO Admin.
+                    </p>
+                    
+                    <form id="vacancyForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Company / Employer Name</label>
+                            <input type="text" id="employerName" class="form-control border-primary" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">What type of business are you?</label>
+                            <p class="text-muted small mb-1">Helps us map the local labor market effectively.</p>
+                            <select id="sectorId" class="form-select border-primary" required>
+                                <option value="" disabled selected>Loading options...</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Job Title</label>
+                            <input type="text" id="jobTitle" class="form-control border-primary" placeholder="e.g. Cashier, Web Developer, Mason" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Number of Vacancies</label>
+                            <input type="number" id="vacancyCount" class="form-control border-primary" min="1" required>
+                            <div class="form-text text-muted">Must accurately reflect your verified business capacity.</div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 fw-bold fs-5 mt-2">Submit Pre-Registration to PESO</button>
+                    </form>
+
+                    <div id="successMessage" class="alert alert-success mt-4 d-none">
+                        <h5 class="alert-heading">✅ Pre-Registration Successful!</h5>
+                        <p class="mb-0">Your vacancy request has been securely transmitted to the Silay City PESO Dashboard.</p>
+                        <hr>
+                        <p class="mb-0 small"><strong>Final Step:</strong> To complete your accreditation and publish this vacancy, please visit our office at the <strong>3rd Level Annex Building</strong> with your SEC/DTI Registration and BIR Form 2303 for consultation.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Friendly helper text for strict PSA sector names
+    const sectorHelpers = {
+        "Agriculture": "(e.g., Farming, Fishing, Forestry)",
+        "Construction": "(e.g., Building, Contracting, Engineering)",
+        "Manufacturing": "(e.g., Factories, Production, Crafts)",
+        "Wholesale and Retail Trade": "(e.g., Stores, Shops, Supermarkets)",
+        "Accommodation and Food Service Activities": "(e.g., Hotels, Restaurants, Cafes)"
+    };
+
+    // 1. Dynamically load the sectors from the API
+    document.addEventListener('DOMContentLoaded', async function() {
+        const dropdown = document.getElementById('sectorId');
+        
+        try {
+            const response = await fetch('https://unreprobative-temika-overcareful.ngrok-free.dev/api/forecasts/sectors');
+            const data = await response.json();
+            
+            dropdown.innerHTML = '<option value="" disabled selected>Select your business type...</option>';
+            
+            data.sectors.forEach((sectorName, index) => {
+                const sectorId = index + 1; // Maps array index to DB ID
+                const helperText = sectorHelpers[sectorName] || "";
+                dropdown.innerHTML += `<option value="${sectorId}">${sectorName} ${helperText}</option>`;
+            });
+
+            // The "PESO will handle it" fallback option
+            dropdown.innerHTML += `<option value="fallback" class="text-primary fw-bold">I'm not sure (PESO will categorize this during my visit)</option>`;
+
+        } catch (error) {
+            dropdown.innerHTML = '<option value="" disabled>Error loading business types.</option>';
+            console.error("Could not load sectors:", error);
+        }
+    });
+
+    // 2. Handle the Form Submission
+    document.getElementById('vacancyForm').addEventListener('submit', async function(e) {
+        e.preventDefault(); 
+
+        let selectedSector = document.getElementById('sectorId').value;
+        let finalJobTitle = document.getElementById('jobTitle').value;
+
+        // Smart Workaround: If they picked the fallback, default to ID 1 but flag the title for the Admin
+        if (selectedSector === "fallback") {
+            selectedSector = 1; 
+            finalJobTitle = "[NEEDS SECTOR CHECK] " + finalJobTitle;
+        }
+
+        const payload = {
+            sector_id: parseInt(selectedSector),
+            employer_name: document.getElementById('employerName').value,
+            job_title: finalJobTitle,
+            vacancy_count: parseInt(document.getElementById('vacancyCount').value)
+        };
+
+        try {
+            const response = await fetch('https://unreprobative-temika-overcareful.ngrok-free.dev/api/vacancies', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                document.getElementById('successMessage').classList.remove('d-none');
+                document.getElementById('vacancyForm').reset();
+                window.scrollTo(0, document.body.scrollHeight); // Scroll down to show success message
+            } else {
+                alert('Server error. Please check Flask terminal.');
+            }
+        } catch (error) {
+            alert('Failed to connect to the Worksight API. Is Flask running?');
+        }
+    });
+</script>
+
+</body>
+</html>
