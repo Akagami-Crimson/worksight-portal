@@ -74,7 +74,12 @@
     // 2. Fetch all available sectors to populate the dropdown
     async function loadSectors() {
         try {
-            const response = await fetch('https://unreprobative-temika-overcareful.ngrok-free.dev/api/forecasts/sectors');
+            const response = await fetch('https://unreprobative-temika-overcareful.ngrok-free.dev/api/forecasts/sectors', {
+                method: 'GET',
+                headers:{
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
             const data = await response.json();
             const filter = document.getElementById('sectorFilter');
             
@@ -89,7 +94,12 @@
     // 3. Fetch all verified jobs from the Ground Truth API
     async function loadAllJobs() {
         try {
-            const response = await fetch('https://unreprobative-temika-overcareful.ngrok-free.dev/api/vacancies/active?verified=1');
+            const response = await fetch('https://unreprobative-temika-overcareful.ngrok-free.dev/api/vacancies/active?verified=1', {
+                method:'GET',
+                headers:{
+                    'ngrok-skip-browser-warning':'true'
+                }
+            });
             allJobs = await response.json();
             renderJobs(allJobs); // Draw all jobs initially
         } catch (error) {
@@ -129,7 +139,12 @@
 
         // Fetch AI Interpretation for the specifically selected sector
         try {
-            const response = await fetch(`https://unreprobative-temika-overcareful.ngrok-free.dev/api/interpretation/sector/${selectedSector}`);
+            const response = await fetch(`https://unreprobative-temika-overcareful.ngrok-free.dev/api/interpretation/sector/${selectedSector}`, {
+                method: 'GET',
+                headers:{
+                    'ngrok-skip-browser-warning': 'true'
+                }
+            });
             const data = await response.json();
 
             if (data && data.interpretation && data.interpretation.metrics) {
