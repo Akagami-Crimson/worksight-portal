@@ -91,10 +91,11 @@
         }
     }
 
-    // 3. Fetch all verified jobs from the Ground Truth API
+   // 3. Fetch all verified jobs from the Ground Truth API
     async function loadAllJobs() {
         try {
-            const response = await fetch('https://unreprobative-temika-overcareful.ngrok-free.dev/api/vacancies/active?verified=1', {
+            // ---> THE URL HERE IS THE ONLY THING THAT CHANGED <---
+            const response = await fetch('https://unreprobative-temika-overcareful.ngrok-free.dev/api/vacancies/list?filter=Approved', {
                 method:'GET',
                 headers:{
                     'ngrok-skip-browser-warning':'true'
@@ -110,7 +111,7 @@
                 </div>`;
         }
     }
-
+    
    // 4. Handle Dual Filtering (Search + Sector) and AI Banner injection
     async function filterJobs() {
         const selectedSector = document.getElementById('sectorFilter').value;
